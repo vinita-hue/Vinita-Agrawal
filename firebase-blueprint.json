@@ -1,0 +1,149 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Site Engineer or Admin user",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["engineer", "admin", "qa", "site_supervisor", "electrician", "plumber", "flooring_team", "sales"] }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Check-in and check-out records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "laborName": { "type": "string" },
+        "isEngineer": { "type": "boolean" },
+        "engineerRole": { "type": "string" },
+        "type": { "type": "string", "enum": ["check-in", "check-out"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "dateStr": { "type": "string" },
+        "workDetails": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "photoUrl": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "safetyChecks": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["type", "timestamp", "dateStr", "laborName"]
+    },
+    "SafetyCheckpoint": {
+      "title": "Safety Checkpoint",
+      "description": "Safety tasks defined by admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "task": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["task", "createdAt"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Client details registered by admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "siteLocation": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "currentStage": { "type": "string" },
+        "geoFenceRadius": { "type": "number", "description": "Geo-fencing radius in meters" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "SiteReport": {
+      "title": "Site Report",
+      "description": "Daily site progress report with AI analysis",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "engineerId": { "type": "string" },
+        "engineerName": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "dateStr": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "aiAnalysis": { "type": "string" },
+        "currentStage": { "type": "string" },
+        "labourEntries": { "type": "array", "items": { "type": "object" } },
+        "safetyChecks": { "type": "array", "items": { "type": "string" } },
+        "nextStages": { "type": "string" },
+        "purposeOfVisit": { "type": "string" },
+        "materialReport": {
+          "type": "object",
+          "properties": {
+            "materialType": { "type": "string" },
+            "images": { "type": "array", "items": { "type": "string" } },
+            "analysis": { "type": "string" }
+          }
+        },
+        "location": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        }
+      },
+      "required": ["engineerId", "clientId", "timestamp", "images", "aiAnalysis"]
+    },
+    "ReportHead": {
+      "title": "Report Head",
+      "description": "Technical heads for AI report generation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "role": { "type": "string", "enum": ["engineer", "admin", "qa", "site_supervisor", "electrician", "plumber", "flooring_team", "sales"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Attendance logs"
+    },
+    "/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Client records"
+    },
+    "/safety_checkpoints/{checkpointId}": {
+      "schema": "SafetyCheckpoint",
+      "description": "Safety tasks"
+    },
+    "/site_reports/{reportId}": {
+      "schema": "SiteReport",
+      "description": "Site progress reports"
+    },
+    "/report_heads/{headId}": {
+      "schema": "ReportHead",
+      "description": "Technical heads for AI reports"
+    }
+  }
+}

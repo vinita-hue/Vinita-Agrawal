@@ -1,0 +1,8 @@
+{
+  "name": " Reidius Site Force Ver 1",
+  "description": "Construction site labor attendance system for Reidius Infra. Features geo-location, bulk attendance, and work details.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
