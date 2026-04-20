@@ -809,18 +809,7 @@ function SiteReportDialog({
   const [purposeOfVisit, setPurposeOfVisit] = useState('');
   const [safetyChecks, setSafetyChecks] = useState<SafetyCheck[]>([]);
   const [newLabour, setNewLabour] = useState<LabourEntry>({ name: '', role: 'Mason', jobWork: '' });
-  const [isMobileDevice, setIsMobileDevice] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Check for mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-      const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
-      setIsMobileDevice(mobileRegex.test(userAgent.toLowerCase()));
-    };
-    checkMobile();
-  }, []);
 
   // Fetch safety checks
   useEffect(() => {
@@ -1056,9 +1045,11 @@ function SiteReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="lg" className="rounded-full h-16 w-16 shadow-lg bg-black hover:bg-slate-800 text-yellow-400 border-2 border-yellow-400" />}>
-        <Camera className="h-7 w-7" />
-      </DialogTrigger>
+      <DialogTrigger render={
+        <Button size="lg" className="rounded-full h-16 w-16 shadow-lg bg-black hover:bg-slate-800 text-yellow-400 border-2 border-yellow-400">
+          <Camera className="h-7 w-7" />
+        </Button>
+      } />
       <DialogContent className="sm:max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-heading font-bold uppercase tracking-tight">Site Progress Report</DialogTitle>
@@ -1096,21 +1087,16 @@ function SiteReportDialog({
               <Label className="font-bold uppercase tracking-[0.2em] text-[10px] text-slate-500">Site Images (Capture 4-5)</Label>
               <Button 
                 onClick={() => {
-                  if (!isMobileDevice) {
-                    alert("STRICT PROHIBITION: Image uploads are only allowed from mobile devices (Camera) to ensure real-time site reporting. Laptop/Desktop uploads are not permitted.");
-                    return;
-                  }
                   fileInputRef.current?.click();
                 }} 
                 variant="outline" 
                 size="sm" 
-                disabled={images.length >= 5 || !isMobileDevice}
+                disabled={images.length >= 5}
                 className={cn(
-                  "h-8 text-[9px] font-bold uppercase tracking-widest border-yellow-400 text-yellow-600 hover:bg-yellow-50",
-                  !isMobileDevice && "opacity-50 cursor-not-allowed border-slate-200 text-slate-400"
+                  "h-8 text-[9px] font-bold uppercase tracking-widest border-yellow-400 text-yellow-600 hover:bg-yellow-50"
                 )}
               >
-                <Camera className="h-3 w-3 mr-1" /> {isMobileDevice ? "Capture Images" : "Mobile Only"}
+                <Camera className="h-3 w-3 mr-1" /> Capture Images
               </Button>
               <input 
                 type="file" 
@@ -1352,16 +1338,6 @@ function MaterialReportDialog({
   const [customMaterial, setCustomMaterial] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const materialFileInputRef = useRef<HTMLInputElement>(null);
-  const [isMobileDevice, setIsMobileDevice] = useState(true);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-      const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
-      setIsMobileDevice(mobileRegex.test(userAgent.toLowerCase()));
-    };
-    checkMobile();
-  }, []);
 
   const compressImage = (base64Str: string): Promise<string> => {
     return new Promise((resolve) => {
@@ -1518,12 +1494,12 @@ function MaterialReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className="bg-blue-600 text-white hover:bg-blue-700 font-bold uppercase text-[10px] tracking-widest px-6" />}>
-        <>
+      <DialogTrigger render={
+        <Button className="bg-blue-600 text-white hover:bg-blue-700 font-bold uppercase text-[10px] tracking-widest px-6">
           <Camera className="h-3.5 w-3.5 mr-2" />
           New Material Report
-        </>
-      </DialogTrigger>
+        </Button>
+      } />
       <DialogContent className="sm:max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-heading font-bold uppercase tracking-tight">Material Quality Report</DialogTitle>
@@ -1550,15 +1526,11 @@ function MaterialReportDialog({
               <Label className="font-bold uppercase tracking-[0.2em] text-[10px] text-slate-500">Capture Material</Label>
               <Button 
                 onClick={() => {
-                  if (!isMobileDevice) {
-                    alert("Mobile device required for material capture.");
-                    return;
-                  }
                   materialFileInputRef.current?.click();
                 }} 
                 variant="outline" 
                 size="sm" 
-                disabled={materialImages.length >= 3 || !isMobileDevice}
+                disabled={materialImages.length >= 3}
                 className="h-8 text-[9px] font-bold uppercase tracking-widest border-blue-400 text-blue-600 hover:bg-blue-50"
               >
                 <Camera className="h-3 w-3 mr-1" /> Capture
@@ -2716,12 +2688,12 @@ function SafetyView({ safetyChecks, isAdmin, onDelete }: { safetyChecks: SafetyC
         <h2 className="text-2xl font-heading font-bold uppercase tracking-tight">Safety Checkpoints</h2>
         {isAdmin && (
           <Dialog open={isAdding} onOpenChange={setIsAdding}>
-            <DialogTrigger render={<Button className="bg-black text-yellow-400 hover:bg-slate-800 border border-yellow-400 font-bold uppercase text-[10px] tracking-widest px-6" />}>
-              <>
+            <DialogTrigger render={
+              <Button className="bg-black text-yellow-400 hover:bg-slate-800 border border-yellow-400 font-bold uppercase text-[10px] tracking-widest px-6">
                 <Plus className="h-3.5 w-3.5 mr-2" />
                 Add Checkpoint
-              </>
-            </DialogTrigger>
+              </Button>
+            } />
             <DialogContent className="sm:max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-heading font-bold uppercase tracking-tight">New Safety Task</DialogTitle>
@@ -3076,12 +3048,12 @@ function ReportHeadsView({ reportHeads, isAdmin, onDelete }: { reportHeads: Repo
         <h2 className="text-2xl font-heading font-bold uppercase tracking-tight">AI Report Heads</h2>
         {isAdmin && (
           <Dialog open={isAdding} onOpenChange={setIsAdding}>
-            <DialogTrigger render={<Button className="bg-black text-yellow-400 hover:bg-slate-800 border border-yellow-400 font-bold uppercase text-[10px] tracking-widest px-6" />}>
-              <>
+            <DialogTrigger render={
+              <Button className="bg-black text-yellow-400 hover:bg-slate-800 border border-yellow-400 font-bold uppercase text-[10px] tracking-widest px-6">
                 <Plus className="h-3.5 w-3.5 mr-2" />
                 Add Head
-              </>
-            </DialogTrigger>
+              </Button>
+            } />
             <DialogContent className="sm:max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-heading font-bold uppercase tracking-tight">New Technical Head</DialogTitle>
@@ -3348,12 +3320,12 @@ function ClientsView({
         <h2 className="text-2xl font-heading font-bold uppercase tracking-tight">Client Directory</h2>
         {isAdmin && (
           <Dialog open={isAdding} onOpenChange={setIsAdding}>
-            <DialogTrigger render={<Button className="bg-black text-yellow-400 hover:bg-slate-800 border border-yellow-400 font-bold uppercase text-[10px] tracking-widest px-6" />}>
-              <>
+            <DialogTrigger render={
+              <Button className="bg-black text-yellow-400 hover:bg-slate-800 border border-yellow-400 font-bold uppercase text-[10px] tracking-widest px-6">
                 <UserPlus className="h-3.5 w-3.5 mr-2" />
                 Register Client
-              </>
-            </DialogTrigger>
+              </Button>
+            } />
             <DialogContent className="sm:max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-heading font-bold uppercase tracking-tight">New Client Registration</DialogTitle>
@@ -3392,7 +3364,19 @@ function ClientsView({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {clients.length === 0 ? (
+        {isAdmin && (
+          <Card 
+            className="overflow-hidden border-2 border-dashed border-yellow-400/50 bg-yellow-400/5 hover:bg-yellow-400/10 hover:border-yellow-400 transition-all cursor-pointer flex flex-col items-center justify-center p-8 text-center"
+            onClick={() => setIsAdding(true)}
+          >
+            <div className="bg-yellow-400 p-4 rounded-full mb-4 shadow-lg group-hover:scale-110 transition-transform">
+              <Plus className="h-8 w-8 text-black" />
+            </div>
+            <p className="font-heading font-bold text-lg uppercase tracking-tight text-slate-900 border-b-2 border-yellow-400 pb-1 mb-2">Register New Client</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Setup a new construction site</p>
+          </Card>
+        )}
+        {clients.length === 0 && !isAdmin ? (
           <div className="col-span-full py-20 text-center text-slate-300 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-10" />
             <p className="font-bold uppercase tracking-[0.2em] text-[10px]">No clients registered yet</p>
@@ -3969,12 +3953,12 @@ function DesignRequirementDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold uppercase text-[10px] tracking-widest px-6" />}>
-        <>
+      <DialogTrigger render={
+        <Button className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold uppercase text-[10px] tracking-widest px-6">
           <Plus className="h-3.5 w-3.5 mr-2" />
           Raise Requirement
-        </>
-      </DialogTrigger>
+        </Button>
+      } />
       <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95%] max-w-[450px] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden p-0 focus:outline-none">
         <DialogHeader className="p-5 bg-slate-900 text-white">
           <DialogTitle className="text-lg font-heading font-bold uppercase tracking-tight">New Design Requirement</DialogTitle>

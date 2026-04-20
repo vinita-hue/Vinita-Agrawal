@@ -22,11 +22,14 @@ enableIndexedDbPersistence(db).catch((err) => {
 
 // Test connection to Firestore
 async function testConnection() {
+  // Only run check if navigator says we are online to avoid false positives for intentional offline state
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. The client is offline.");
+      console.warn("Firebase Connection Check: The client is offline. If you are connected to the internet, please check your Firebase configuration.");
     }
     // Skip logging for other errors, as this is simply a connection test.
   }
