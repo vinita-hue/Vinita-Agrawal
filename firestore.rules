@@ -1,279 +1,142 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {uid}
-    // Fields:
-    //   - uid: string (required)
-    //   - name: string (required)
-    //   - email: string (required)
-    //   - role: string (required, enum: ['engineer', 'admin', 'qa', 'site_supervisor', 'electrician', 'plumber', 'flooring_team', 'sales', 'architect'])
-    //
-    // Collection: attendance
-    // Document ID: {attendanceId}
-    // Fields:
-    //   - laborName: string (required)
-    //   - isEngineer: boolean (optional)
-    //   - engineerRole: string (optional)
-    //   - type: string (required, enum: ['check-in', 'check-out'])
-    //   - timestamp: timestamp (required)
-    //   - dateStr: string (required, YYYY-MM-DD)
-    //   - workDetails: string (optional)
-    //   - location: map (required)
-    //     - latitude: number
-    //     - longitude: number
-    //   - photoUrl: string (optional)
-    //   - clientId: string (optional)
-    //   - clientName: string (optional)
-    //   - safetyChecks: list (optional)
-    //
-    // Collection: safety_checkpoints
-    // Document ID: {checkpointId}
-    // Fields:
-    //   - task: string (required)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: clients
-    // Document ID: {clientId}
-    // Fields:
-    //   - name: string (required)
-    //   - siteLocation: map (required)
-    //     - latitude: number
-    //     - longitude: number
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: report_heads
-    // Document ID: {headId}
-    // Fields:
-    //   - title: string (required)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: site_reports
-    // Document ID: {reportId}
-    // Fields:
-    //   - engineerId: string (required)
-    //   - engineerName: string (required)
-    //   - engineerRole: string (optional)
-    //   - clientId: string (required)
-    //   - clientName: string (required)
-    //   - timestamp: timestamp (required)
-    //   - dateStr: string (required)
-    //   - images: list (required)
-    //   - aiAnalysis: string (required)
-    //   - location: map (required)
-    //     - latitude: number
-    //     - longitude: number
-    //   - labourEntries: list (optional)
-    //   - safetyChecks: list (optional)
-    //   - nextStages: string (optional)
-    //
-    // ===============================================================
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
     
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Admin check: Prioritizes hardcoded emails for bootstrap, then checks DB roles.
     function isAdmin() {
-      return isAuthenticated() &&
-        ((request.auth.token.email == "vinita@reidiusinfra.com" || request.auth.token.email == "vinitaagrawalec@gmail.com") && request.auth.token.email_verified == true ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      return isSignedIn() && (
+        (request.auth.token.email.lower() in ["vinita@reidiusinfra.com", "vinitaagrawalec@gmail.com"] && request.auth.token.email_verified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
     }
 
-    function isSales() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'sales';
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    function isQA() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'qa';
-    }
-
-    function isArchitect() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'architect';
+    function hasRole(role) {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserRole() == role;
     }
 
     function isEngineer() {
-      return isAuthenticated() && 
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['engineer', 'qa', 'site_supervisor', 'electrician', 'plumber', 'flooring_team', 'sales', 'architect']) || isAdmin());
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+      return isSignedIn() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getUserRole() in ['engineer', 'qa', 'site_supervisor', 'electrician', 'plumber', 'flooring_team', 'sales', 'architect'])
+      );
     }
 
     // ===============================================================
-    // Domain Validators
+    // Validation Helpers (Blueprints)
     // ===============================================================
 
-    function isValidUser(data, userId) {
-      return hasOnlyAllowedFields(['uid', 'name', 'email', 'role']) &&
-             data.uid is string && data.uid == userId &&
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role']) && 
+             data.keys().size() == 4 &&
+             data.uid == request.auth.uid &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.email is string && isValidEmail(data.email) &&
+             data.email == request.auth.token.email &&
              data.role in ['engineer', 'admin', 'qa', 'site_supervisor', 'electrician', 'plumber', 'flooring_team', 'sales', 'architect'];
     }
 
     function isValidAttendance(data) {
-      return hasOnlyAllowedFields(['userId', 'laborName', 'isEngineer', 'engineerRole', 'type', 'timestamp', 'dateStr', 'workDetails', 'labourEntries', 'location', 'photoUrl', 'clientId', 'clientName', 'safetyChecks']) &&
-             (!('userId' in data) || data.userId is string) &&
-             (!('isEngineer' in data) || data.isEngineer is bool) &&
-             (!('engineerRole' in data) || data.engineerRole is string) &&
-             (!('workDetails' in data) || (data.workDetails is string && data.workDetails.size() < 1000)) &&
-             (!('labourEntries' in data) || data.labourEntries is list) &&
-             (!('clientId' in data) || data.clientId is string) &&
-             (!('clientName' in data) || data.clientName is string) &&
-             (!('safetyChecks' in data) || data.safetyChecks is list) &&
-             data.laborName is string &&
+      let required = ['userId', 'laborName', 'type', 'timestamp', 'dateStr', 'location'];
+      return data.keys().hasAll(required) &&
+             data.userId == request.auth.uid &&
              data.type in ['check-in', 'check-out'] &&
-             data.timestamp is timestamp &&
-             data.dateStr is string && data.dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             (data.timestamp == request.time || data.timestamp is timestamp) &&
              data.location is map &&
              data.location.latitude is number &&
              data.location.longitude is number;
     }
 
-    function isValidSafetyCheckpoint(data) {
-      return hasOnlyAllowedFields(['task', 'createdAt']) &&
-             data.task is string && data.task.size() > 0 && data.task.size() < 500 &&
-             data.createdAt is timestamp;
-    }
-
-    function isValidClient(data) {
-      return hasOnlyAllowedFields(['name', 'siteLocation', 'createdAt', 'currentStage', 'geoFenceRadius']) &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             (!('siteLocation' in data) || (
-               data.siteLocation is map &&
-               data.siteLocation.latitude is number &&
-               data.siteLocation.longitude is number
-             )) &&
-             (!('currentStage' in data) || data.currentStage is string) &&
-             (!('geoFenceRadius' in data) || data.geoFenceRadius is number) &&
-             data.createdAt is timestamp;
-    }
-
-    function isValidReportHead(data) {
-      return hasOnlyAllowedFields(['title', 'role', 'createdAt']) &&
-             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
-             data.role in ['engineer', 'admin', 'qa', 'site_supervisor', 'electrician', 'plumber', 'flooring_team', 'sales', 'architect'] &&
-             data.createdAt is timestamp;
-    }
-
-    function isValidDesignRequirement(data) {
-      return hasOnlyAllowedFields(['engineerId', 'engineerName', 'engineerRole', 'clientId', 'clientName', 'requirement', 'priority', 'status', 'timestamp']) &&
-             data.engineerId is string &&
-             data.engineerName is string &&
-             (!('engineerRole' in data) || data.engineerRole is string) &&
-             data.clientId is string &&
-             data.clientName is string &&
-             data.requirement is string && data.requirement.size() > 0 && data.requirement.size() < 5000 &&
-             data.priority in ['Low', 'Medium', 'High', 'Urgent'] &&
-             data.status in ['Pending', 'In Progress', 'Resolved'] &&
-             (data.timestamp is timestamp || data.timestamp == request.time);
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
     function isValidSiteReport(data) {
-      return hasOnlyAllowedFields(['engineerId', 'engineerName', 'engineerRole', 'clientId', 'clientName', 'timestamp', 'dateStr', 'images', 'aiAnalysis', 'location', 'labourEntries', 'safetyChecks', 'nextStages', 'purposeOfVisit', 'currentStage', 'materialReport']) &&
-             data.engineerId is string &&
-             data.engineerName is string &&
-             (!('engineerRole' in data) || data.engineerRole is string) &&
-             data.clientId is string &&
-             data.clientName is string &&
-             data.timestamp is timestamp &&
-             data.dateStr is string &&
-             data.images is list &&
-             data.aiAnalysis is string &&
-             data.location is map &&
-             data.location.latitude is number &&
-             data.location.longitude is number &&
-             (!('labourEntries' in data) || data.labourEntries is list) &&
-             (!('safetyChecks' in data) || data.safetyChecks is list) &&
-             (!('nextStages' in data) || data.nextStages is string) &&
-             (!('purposeOfVisit' in data) || data.purposeOfVisit is string) &&
-             (!('currentStage' in data) || data.currentStage is string) &&
-             (!('materialReport' in data) || (
-               data.materialReport is map &&
-               data.materialReport.materialType is string &&
-               data.materialReport.images is list &&
-               data.materialReport.analysis is string
-             ));
+      let required = ['engineerId', 'engineerName', 'clientId', 'clientName', 'timestamp', 'dateStr', 'images', 'aiAnalysis', 'location'];
+      return data.keys().hasAll(required) &&
+             data.engineerId == request.auth.uid &&
+             data.images is list && data.images.size() <= 6 &&
+             (data.timestamp == request.time || data.timestamp is timestamp) &&
+             data.location is map;
     }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data, userId) && (isOwner(userId) || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data, userId) && (isOwner(userId) || isAdmin());
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin()) && isValidUser(incoming()) && (
+        (incoming().role == existing().role) || isAdmin()
+      );
     }
 
     match /attendance/{attendanceId} {
-      allow read: if isAdmin() || isSales() || (isEngineer() && resource.data.userId == request.auth.uid);
-      allow create: if isEngineer() && isValidAttendance(request.resource.data) && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (isEngineer() && resource.data.userId == request.auth.uid && isValidAttendance(request.resource.data));
+      allow read: if isAdmin() || hasRole('sales') || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isEngineer() && isValidId(attendanceId) && isValidAttendance(incoming());
+      allow update: if isAdmin() || (isOwner(resource.data.userId) && isValidAttendance(incoming()));
       allow delete: if isAdmin();
     }
 
     match /site_reports/{reportId} {
-      allow read: if isAdmin() || isSales() || isQA() || (isEngineer() && resource.data.engineerId == request.auth.uid);
-      allow create: if isEngineer() && isValidSiteReport(request.resource.data) && request.resource.data.engineerId == request.auth.uid;
-      allow update: if isAdmin() || (isEngineer() && resource.data.engineerId == request.auth.uid && isValidSiteReport(request.resource.data));
+      allow read: if isAdmin() || hasRole('sales') || hasRole('qa') || (isSignedIn() && resource.data.engineerId == request.auth.uid);
+      allow create: if isEngineer() && isValidId(reportId) && isValidSiteReport(incoming());
+      allow update: if isAdmin() || (isOwner(resource.data.engineerId) && isValidSiteReport(incoming()));
       allow delete: if isAdmin();
     }
 
     match /clients/{clientId} {
-      allow read: if isEngineer() || isSales();
-      allow create: if isAdmin() && isValidClient(request.resource.data);
-      allow update: if isAdmin() && isValidClient(request.resource.data);
-      allow delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     match /safety_checkpoints/{checkpointId} {
       allow read: if isEngineer();
-      allow create: if isAdmin() && isValidSafetyCheckpoint(request.resource.data);
-      allow update: if isAdmin() && isValidSafetyCheckpoint(request.resource.data);
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /report_heads/{headId} {
       allow read: if isEngineer();
-      allow create: if isAdmin() && isValidReportHead(request.resource.data);
-      allow update: if isAdmin() && isValidReportHead(request.resource.data);
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /design_requirements/{reqId} {
       allow read: if isEngineer();
-      allow create: if isEngineer() && isValidDesignRequirement(request.resource.data) && request.resource.data.engineerId == request.auth.uid;
-      allow update: if isEngineer() && (isAdmin() || resource.data.engineerId == request.auth.uid || isArchitect()) && isValidDesignRequirement(request.resource.data);
+      allow create: if isEngineer() && incoming().engineerId == request.auth.uid;
+      allow update: if isAdmin() || hasRole('architect') || isOwner(resource.data.engineerId);
       allow delete: if isAdmin();
-    }
-
-    match /{path=**} {
-      allow read, write: if false;
     }
   }
 }

@@ -72,7 +72,7 @@ export interface Attendance {
 export interface Client {
   id: string;
   name: string;
-  siteLocation: {
+  siteLocation?: {
     latitude: number;
     longitude: number;
   };

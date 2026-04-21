@@ -293,12 +293,18 @@ export default function App() {
   // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
-      try {
+      if (firebaseUser) {
         const isAdmin = firebaseUser.email === 'vinita@reidiusinfra.com' || firebaseUser.email === 'vinitaagrawalec@gmail.com';
         
         setUser(firebaseUser);
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        let userDoc;
+        try {
+          userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+          return;
+        }
+
         if (userDoc.exists()) {
           const profileData = userDoc.data() as UserProfile;
           setProfile(profileData);
@@ -310,17 +316,18 @@ export default function App() {
             setActiveTab('labour');
           }
         } else {
-            const newProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'Engineer',
-              email: firebaseUser.email || '',
-              role: isAdmin ? 'admin' : 'engineer'
-            };
+          const newProfile: UserProfile = {
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Engineer',
+            email: firebaseUser.email || '',
+            role: isAdmin ? 'admin' : 'engineer'
+          };
+          try {
             await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
             setProfile(newProfile);
+          } catch (err) {
+            handleFirestoreError(err, OperationType.CREATE, `users/${firebaseUser.uid}`);
           }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.GET, `auth_check`);
         }
       } else {
         setUser(null);
@@ -480,6 +487,95 @@ export default function App() {
   };
 
   const handleLogout = () => signOut(auth);
+
+  // Auto-sync for admin when list is empty
+  useEffect(() => {
+    const isAdmin = profile?.role === 'admin' || user?.email === 'vinita@reidiusinfra.com' || user?.email === 'vinitaagrawalec@gmail.com';
+    if (user && isAdmin && clients.length === 0 && loading === false) {
+      // Small delay to ensure snapshot listeners are settled
+      const timer = setTimeout(() => {
+        if (clients.length === 0) {
+          syncClientsToFirebase();
+        }
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, profile, clients.length, loading]);
+
+  const syncClientsToFirebase = async () => {
+    const hardcodedClients: Client[] = [
+      { id: '1', name: "Mukesh Shahani", siteLocation: { latitude: 26.82721519470215, longitude: 75.7149429321289 }, createdAt: new Date().toISOString() },
+      { id: '2', name: "Ajay Bhaskar", siteLocation: { latitude: 26.9464054107666, longitude: 75.7160339355468 }, createdAt: new Date().toISOString() },
+      { id: '3', name: "Jitendera Shrotiya", siteLocation: { latitude: 26.74989128112793, longitude: 75.8674468994140 }, createdAt: new Date().toISOString() },
+      { id: '4', name: "Abhishek Singh Solanki", siteLocation: { latitude: 26.80421257019043, longitude: 75.8954315185546 }, createdAt: new Date().toISOString() },
+      { id: '5', name: "Jitendera Yadav", siteLocation: { latitude: 26.82092094421386, longitude: 75.8547286987304 }, createdAt: new Date().toISOString() },
+      { id: '6', name: "Ravindera ji", siteLocation: { latitude: 26.83019256591797, longitude: 75.851318359375 }, createdAt: new Date().toISOString() },
+      { id: '7', name: "Pankaj Gupta", siteLocation: { latitude: 26.88532829284668, longitude: 75.7939758300781 }, createdAt: new Date().toISOString() },
+      { id: '8', name: "Anil meena", siteLocation: { latitude: 26.82092094421386, longitude: 75.8547286987304 }, createdAt: new Date().toISOString() },
+      { id: '9', name: "Col. H . Thakural", siteLocation: { latitude: 26.85641288757324, longitude: 75.6045913696289 }, createdAt: new Date().toISOString() },
+      { id: '10', name: "Vikas Ahelawat", siteLocation: { latitude: 26.929262, longitude: 75.715714 }, createdAt: new Date().toISOString() },
+      { id: '11', name: "Nitesh Pareek", siteLocation: { latitude: 26.968483, longitude: 75.7777596 }, createdAt: new Date().toISOString() },
+      { id: '12', name: "Jatin Singh ( Anil Panwar)", createdAt: new Date().toISOString() },
+      { id: '13', name: "Gopal Sharma", siteLocation: { latitude: 26.79705619812011, longitude: 75.8114089965820 }, createdAt: new Date().toISOString() },
+      { id: '14', name: "Sumendera Singh", createdAt: new Date().toISOString() },
+      { id: '15', name: "Rajesh Kumar Bairwa", siteLocation: { latitude: 26.76908302307129, longitude: 75.8065795898437 }, createdAt: new Date().toISOString() },
+      { id: '16', name: "Uday Meena", siteLocation: { latitude: 26.74773788452148, longitude: 75.9337844848632 }, createdAt: new Date().toISOString() },
+      { id: '17', name: "Om Prakash ji/ Pritam ji", createdAt: new Date().toISOString() },
+      { id: '18', name: "Vijay Gupta", createdAt: new Date().toISOString() },
+      { id: '19', name: "Manish Khandelwal", createdAt: new Date().toISOString() },
+      { id: '20', name: "Himanshu Jain", createdAt: new Date().toISOString() },
+      { id: '21', name: "Sunil Mahawar", createdAt: new Date().toISOString() },
+      { id: '22', name: "Manish Sharma", createdAt: new Date().toISOString() },
+      { id: '23', name: "Subhash patodia", siteLocation: { latitude: 26.89349937438965, longitude: 75.7171783447265 }, createdAt: new Date().toISOString() },
+      { id: '24', name: "Vaibhav Agarwal", createdAt: new Date().toISOString() },
+      { id: '25', name: "Jagmeet Ji Phase II", createdAt: new Date().toISOString() },
+      { id: '26', name: "Hitesh Ji II Stage", siteLocation: { latitude: 26.87757873535156, longitude: 75.7200469970703 }, createdAt: new Date().toISOString() },
+      { id: '27', name: "Aashish Ji Phase II", siteLocation: { latitude: 26.8290689, longitude: 75.6471306 }, createdAt: new Date().toISOString() },
+      { id: '28', name: "Anugraha Gupta", siteLocation: { latitude: 26.823534, longitude: 75.837540 }, createdAt: new Date().toISOString() },
+      { id: '29', name: "Sunny Ji ( Rajapark )", createdAt: new Date().toISOString() },
+      { id: '30', name: "Shipra Gupta", createdAt: new Date().toISOString() },
+      { id: '31', name: "Vipul Mamodia", createdAt: new Date().toISOString() },
+      { id: '32', name: "Maa Baglamukhi Dhaam", createdAt: new Date().toISOString() },
+      { id: '33', name: "Surendera Luthara", siteLocation: { latitude: 26.80793571472168, longitude: 75.8900909423828 }, createdAt: new Date().toISOString() },
+      { id: '34', name: "Anoop Vashishtha", createdAt: new Date().toISOString() },
+      { id: '35', name: "Nikhil Soni", siteLocation: { latitude: 26.84039497375488, longitude: 75.8302688598632 }, createdAt: new Date().toISOString() },
+      { id: '36', name: "Kartik Ji", createdAt: new Date().toISOString() },
+      { id: '37', name: "Shubham Soni", siteLocation: { latitude: 26.9419042, longitude: 75.7419307 }, createdAt: new Date().toISOString() },
+      { id: '38', name: "Ravi Vijay", siteLocation: { latitude: 26.91513061523437, longitude: 75.8834915161132 }, createdAt: new Date().toISOString() },
+      { id: '39', name: "Hemendera", siteLocation: { latitude: 26.89109992980957, longitude: 75.8278121948242 }, createdAt: new Date().toISOString() },
+      { id: '40', name: "Sachin Sharma", siteLocation: { latitude: 26.86593818664550, longitude: 75.7463378 }, createdAt: new Date().toISOString() },
+      { id: '41', name: "Dr Surendera", siteLocation: { latitude: 26.9527011, longitude: 75.7307889 }, createdAt: new Date().toISOString() },
+      { id: '42', name: "Manish Natani", siteLocation: { latitude: 26.9620204, longitude: 75.7938213 }, createdAt: new Date().toISOString() },
+      { id: '43', name: "Sooryankant Sharma", siteLocation: { latitude: 26.952763, longitude: 75.712868 }, createdAt: new Date().toISOString() },
+      { id: '44', name: "Lalita Choudhary ji", siteLocation: { latitude: 26.8745844, longitude: 75.7363703 }, createdAt: new Date().toISOString() }
+    ];
+
+    try {
+      const batch = writeBatch(db);
+      for (const client of hardcodedClients) {
+        const q = query(collection(db, 'clients'), where('name', '==', client.name));
+        const existingDocs = await getDocs(q);
+        if (existingDocs.empty) {
+          const docRef = doc(collection(db, 'clients'));
+          const clientData: any = {
+            name: client.name,
+            createdAt: serverTimestamp()
+          };
+          
+          if (client.siteLocation) {
+            clientData.siteLocation = client.siteLocation;
+          }
+          
+          batch.set(docRef, clientData);
+        }
+      }
+      await batch.commit();
+      alert('Clients synced successfully');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to sync clients. See console for details.');
+    }
+  };
 
   if (loading) {
     return (
@@ -733,7 +829,13 @@ export default function App() {
 
           {(isSpecialUser) && (
             <TabsContent value="clients">
-              <ClientsView clients={clients} isAdmin={profile?.role === 'admin' || user?.email === 'vinita@reidiusinfra.com' || user?.email === 'vinitaagrawalec@gmail.com'} currentLocation={currentLocation} onDelete={triggerDelete} />
+              <ClientsView 
+                clients={clients} 
+                isAdmin={profile?.role === 'admin' || user?.email === 'vinita@reidiusinfra.com' || user?.email === 'vinitaagrawalec@gmail.com'} 
+                currentLocation={currentLocation} 
+                onDelete={triggerDelete} 
+                onSync={syncClientsToFirebase}
+              />
             </TabsContent>
           )}
 
@@ -3202,12 +3304,14 @@ function ClientsView({
   clients, 
   isAdmin,
   currentLocation,
-  onDelete
+  onDelete,
+  onSync
 }: { 
   clients: Client[], 
   isAdmin: boolean,
   currentLocation: { latitude: number, longitude: number } | null,
-  onDelete: (title: string, description: string, onConfirm: () => Promise<void>) => void
+  onDelete: (title: string, description: string, onConfirm: () => Promise<void>) => void,
+  onSync: () => Promise<void>
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -3318,8 +3422,18 @@ function ClientsView({
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-heading font-bold uppercase tracking-tight">Client Directory</h2>
-        {isAdmin && (
-          <Dialog open={isAdding} onOpenChange={setIsAdding}>
+        <div className="flex items-center gap-4">
+          {isAdmin && (
+            <Button 
+              variant="outline" 
+              onClick={onSync}
+              className="text-[10px] font-bold uppercase tracking-widest border-slate-200 h-10"
+            >
+              Sync Hardcoded List
+            </Button>
+          )}
+          {isAdmin && (
+            <Dialog open={isAdding} onOpenChange={setIsAdding}>
             <DialogTrigger render={
               <Button className="bg-black text-yellow-400 hover:bg-slate-800 border border-yellow-400 font-bold uppercase text-[10px] tracking-widest px-6">
                 <UserPlus className="h-3.5 w-3.5 mr-2" />
@@ -3361,6 +3475,7 @@ function ClientsView({
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

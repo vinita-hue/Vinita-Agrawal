@@ -8,7 +8,7 @@
         "uid": { "type": "string" },
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["engineer", "admin", "qa", "site_supervisor", "electrician", "plumber", "flooring_team", "sales"] }
+        "role": { "type": "string", "enum": ["engineer", "admin", "qa", "site_supervisor", "electrician", "plumber", "flooring_team", "sales", "architect"] }
       },
       "required": ["uid", "name", "email", "role"]
     },
@@ -114,10 +114,28 @@
       "properties": {
         "id": { "type": "string" },
         "title": { "type": "string" },
-        "role": { "type": "string", "enum": ["engineer", "admin", "qa", "site_supervisor", "electrician", "plumber", "flooring_team", "sales"] },
+        "role": { "type": "string", "enum": ["engineer", "admin", "qa", "site_supervisor", "electrician", "plumber", "flooring_team", "sales", "architect"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "role", "createdAt"]
+    },
+    "DesignRequirement": {
+      "title": "Design Requirement",
+      "description": "Requirements and feedback for architects",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "engineerId": { "type": "string" },
+        "engineerName": { "type": "string" },
+        "engineerRole": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "requirement": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Urgent"] },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Resolved"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["engineerId", "clientId", "requirement", "priority", "status", "timestamp"]
     }
   },
   "firestore": {
@@ -144,6 +162,10 @@
     "/report_heads/{headId}": {
       "schema": "ReportHead",
       "description": "Technical heads for AI reports"
+    },
+    "/design_requirements/{reqId}": {
+      "schema": "DesignRequirement",
+      "description": "Design requirements for architects"
     }
   }
 }
